@@ -20,7 +20,7 @@ class Observer
     /**
      * Cronjob expression configuration
      */
-    const XML_PATH_CRON_EXPR = 'crontab/default/jobs/generate_sitemaps/schedule/cron_expr';
+    const XML_PATH_CRON_EXPR = 'crontab/default/jobs/sitemap_generate/schedule/cron_expr';
 
     /**
      * Error email template configuration
@@ -65,24 +65,32 @@ class Observer
     protected $inlineTranslation;
 
     /**
+     * @var \Magento\Cron\Model\ScheduleFactory
+     */
+    private $scheduleFactory;
+
+    /**
      * @param \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
      * @param \Magento\Sitemap\Model\ResourceModel\Sitemap\CollectionFactory $collectionFactory
      * @param \Magento\Store\Model\StoreManagerInterface $storeManager
      * @param \Magento\Framework\Mail\Template\TransportBuilder $transportBuilder
      * @param \Magento\Framework\Translate\Inline\StateInterface $inlineTranslation
+     * @param \Magento\Cron\Model\ScheduleFactory $scheduleFactory
      */
     public function __construct(
         \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
         \Magento\Sitemap\Model\ResourceModel\Sitemap\CollectionFactory $collectionFactory,
         \Magento\Store\Model\StoreManagerInterface $storeManager,
         \Magento\Framework\Mail\Template\TransportBuilder $transportBuilder,
-        \Magento\Framework\Translate\Inline\StateInterface $inlineTranslation
+        \Magento\Framework\Translate\Inline\StateInterface $inlineTranslation,
+        \Magento\Cron\Model\ScheduleFactory $scheduleFactory
     ) {
         $this->_scopeConfig = $scopeConfig;
         $this->_collectionFactory = $collectionFactory;
         $this->_storeManager = $storeManager;
         $this->_transportBuilder = $transportBuilder;
         $this->inlineTranslation = $inlineTranslation;
+        $this->scheduleFactory = $scheduleFactory;
     }
 
     /**
@@ -102,6 +110,14 @@ class Observer
             \Magento\Store\Model\ScopeInterface::SCOPE_STORE
         )
         ) {
+            return;
+        }
+
+        $schedule = $this->scheduleFactory->create();
+        $schedule->setScheduledAt(date('Y-m-d H:i:s'));
+        $schedule->setCronExpr($this->_scopeConfig->getValue(self::XML_PATH_CRON_EXPR));
+
+        if (!$schedule->trySchedule()) {
             return;
         }
 
